@@ -16,11 +16,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("api/v1/products")
+@RequestMapping("${api.prefix}/products")
 public class ProductController {
     @GetMapping("")
     public ResponseEntity<String> getAllProducts() {
@@ -33,22 +34,32 @@ public class ProductController {
     }
 
     @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> insertProduct(@Valid @RequestBody ProductDTO productDTO, @RequestPart("file") MultipartFile file, BindingResult result) {
+    public ResponseEntity<?> insertProduct(@Valid @ModelAttribute ProductDTO productDTO,
+//                                           @RequestPart("file") MultipartFile file,
+                                           BindingResult result) {
         try {
             if (result.hasErrors()) {
                 List<String> errorMessage = result.getFieldErrors().stream().map(FieldError::getDefaultMessage).toList();
                 return ResponseEntity.badRequest().body(errorMessage);
             }
-            if (file.getSize() > 10 * 1024 * 1024) {
-                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "File is too large? Maximum is 10mb");
-            }
-            if (file != null) {
-                String contentFile = file.getContentType();
-                if (contentFile == null || !contentFile.startsWith("image/")) {
-                    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("File is must be Image");
+            List<MultipartFile> files = productDTO.getFiles();
+            files = files == null ? new ArrayList<MultipartFile>() : files;
+            for (MultipartFile file : files) {
+                if(file.getSize() == 0) {
+                    continue;
                 }
-                String fileName = storeFile(file);
+                if (file.getSize() > 10 * 1024 * 1024) {
+                    throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "File is too large? Maximum is 10mb");
+                }
+                if (file != null) {
+                    String contentFile = file.getContentType();
+                    if (contentFile == null || !contentFile.startsWith("image/")) {
+                        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("File is must be Image");
+                    }
+                    String fileName = storeFile(file);
+                }
             }
+
 
             return ResponseEntity.ok("insert product successfully " + productDTO);
         } catch (Exception e) {
