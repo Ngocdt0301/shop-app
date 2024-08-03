@@ -15,8 +15,9 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ProductDTO {
-    @NotBlank(message = "title is required")
+    @NotBlank(message = "name is required")
     @Size(min = 3, max = 100, message = "title must be between 3 and 200 character")
     private String name;
 
@@ -24,13 +25,13 @@ public class ProductDTO {
     private String description;
 
     @Min(value = 0, message = "price more 0")
-    private long price;
+    private Float price;
 
     @NotNull(message = "thumbnail is required")
     private String thumbnail;
 
     @JsonProperty("category_id")
-    private String categoryId;
+    private Long categoryId;
 
     private List<MultipartFile> files;
 }

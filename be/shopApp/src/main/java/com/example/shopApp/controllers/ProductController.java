@@ -1,7 +1,13 @@
 package com.example.shopApp.controllers;
 
 import com.example.shopApp.dtos.ProductDTO;
+import com.example.shopApp.dtos.ProductImageDTO;
+import com.example.shopApp.models.Product;
+import com.example.shopApp.models.ProductImage;
+import com.example.shopApp.services.IProductService;
+import com.example.shopApp.services.ProductService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +28,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("${api.prefix}/products")
+@RequiredArgsConstructor
 public class ProductController {
+    private final IProductService productService;
+
     @GetMapping("")
     public ResponseEntity<String> getAllProducts() {
         return ResponseEntity.ok("get all product successfully");
@@ -33,8 +42,8 @@ public class ProductController {
         return ResponseEntity.ok("get product by Id " + productId);
     }
 
-    @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> insertProduct(@Valid @ModelAttribute ProductDTO productDTO,
+    @PostMapping("")
+    public ResponseEntity<?> insertProduct(@Valid @RequestBody ProductDTO productDTO,
 //                                           @RequestPart("file") MultipartFile file,
                                            BindingResult result) {
         try {
@@ -42,30 +51,55 @@ public class ProductController {
                 List<String> errorMessage = result.getFieldErrors().stream().map(FieldError::getDefaultMessage).toList();
                 return ResponseEntity.badRequest().body(errorMessage);
             }
-            List<MultipartFile> files = productDTO.getFiles();
+            Product newProduct = productService.createProduct(productDTO);
+
+
+
+            return ResponseEntity.ok(newProduct);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadImages(
+            @PathVariable("id") Long productId,
+            @ModelAttribute("files") List<MultipartFile> files
+    ){
+        try {
+            Product existingProduct = productService.getProductById(productId);
             files = files == null ? new ArrayList<MultipartFile>() : files;
+            List<ProductImage> productImages = new ArrayList<>();
             for (MultipartFile file : files) {
                 if(file.getSize() == 0) {
                     continue;
                 }
-                if (file.getSize() > 10 * 1024 * 1024) {
-                    throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "File is too large? Maximum is 10mb");
+                // Kiểm tra kích thước file và định dạng
+                if(file.getSize() > 10 * 1024 * 1024) { // Kích thước > 10MB
+                    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                            .body("File is too large? Maximum is 10mb");
                 }
-                if (file != null) {
-                    String contentFile = file.getContentType();
-                    if (contentFile == null || !contentFile.startsWith("image/")) {
-                        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("File is must be Image");
-                    }
-                    String fileName = storeFile(file);
+                String contentType = file.getContentType();
+                if(contentType == null || !contentType.startsWith("image/")) {
+                    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                            .body("File is must be Image");
                 }
+                // Lưu file và cập nhật thumbnail trong DTO
+                String filename = storeFile(file); // Thay thế hàm này với code của bạn để lưu file
+                //lưu vào đối tượng product trong DB
+                ProductImage productImage = productService.createProductImage(
+                        existingProduct.getId(),
+                        ProductImageDTO.builder()
+                                .productId(existingProduct.getId())
+                                .imageUrl(filename)
+                                .build()
+                );
+                productImages.add(productImage);
             }
-
-
-            return ResponseEntity.ok("insert product successfully " + productDTO);
+            return ResponseEntity.ok().body(productImages);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
     }
 
     private String storeFile(MultipartFile file) throws IOException {
@@ -76,7 +110,7 @@ public class ProductController {
         // Đường dấn đến thư mục muốn lưu file
         java.nio.file.Path uploadDir = Paths.get("uploads");
         // Kiểm tra và tạo thư mục nếu không tồn tại
-        if(!Files.exists(uploadDir)) {
+        if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir);
         }
         // Đường dẫn đầy đủ đến tên file
@@ -89,7 +123,7 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteProductById(@PathVariable long id) {
-        return ResponseEntity.ok("Delete product by id succesfully");
+        return ResponseEntity.ok("Delete product by id successfully");
     }
 
     @PutMapping("/{id}")

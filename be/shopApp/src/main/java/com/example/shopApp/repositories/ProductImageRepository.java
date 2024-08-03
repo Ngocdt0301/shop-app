@@ -1,2 +1,10 @@
-package com.example.shopApp.repositories;public class ProductImageRepository {
+package com.example.shopApp.repositories;
+
+import com.example.shopApp.models.ProductImage;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface ProductImageRepository extends JpaRepository<ProductImage, Long> {
+    List<ProductImage> findByProductId(long productID);
 }

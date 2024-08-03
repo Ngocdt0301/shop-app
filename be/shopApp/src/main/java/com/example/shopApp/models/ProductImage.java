@@ -8,14 +8,15 @@ import lombok.*;
 @NoArgsConstructor
 @Getter
 @Setter
+@Builder
 @Entity
-@Table(name = "product_image")
+@Table(name = "product_images")
 public class ProductImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "image_url", length = 255)
+    @Column(name = "img_url", length = 255)
     private String imageUrl;
 
     @ManyToOne
